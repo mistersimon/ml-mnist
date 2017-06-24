@@ -1,39 +1,25 @@
+import numpy as np
+import pandas as pd
+import os.path
+import datetime
+from pickle import dump,load
+
+
 from load_data import load_data
 from ann_model import train_model, test_model
 
+
+
 def main():
 
-    #Load data
     data_train, data_test = load_data()
 
-    #Limit number of training examples for development speed
-    #data_train = data_trim(1000,data_train)
+    model = np.load('./model/model.npy')
 
-    #Define parameters of neural network
-    nn_arch = (784,30,10) #layer sizes (without bias term)
-    reg_param = 0 #regularisation parameter
-
-    model = train_model(data_train, nn_arch, reg_param)
-    test_model(model, data_test, nn_arch)
-
-    #model_file = 'trained_model.npy'
-    #np.save(model_file, model)
-    #model = np.load(model_file)
-
+    test_model(model, data_test)
 
     #for i in range(0,5000,250):
     #    show(data_train[0][i,:], data_train[1][i])
-
-
-def data_trim(m,data):
-    X = data[0]
-    Y = data[1]
-
-    if m < len(Y):
-        X = X[0:m,:]
-        Y = Y[0:m,:]
-
-    return (X,Y)
 
 
 def show(X,Y):

@@ -1,10 +1,12 @@
 import numpy as np
 from scipy.optimize import minimize
 
+minimise_iter = 0;
+
 #train model 
-def train_model(data, nn_arch, reg_param):
-    #Seed random numbers to make calculation deterministic
-    np.random.seed(0)
+def train_model(data, model_params):
+
+    nn_arch = model_params['nn_arch']
 
     # Intialise synapses
     syn = intialise_weights(nn_arch)
@@ -12,30 +14,36 @@ def train_model(data, nn_arch, reg_param):
     # Unroll Parameters
     initial_nn_params = collapse_syn(syn)
 
+    global minimise_iter
+    minimise_iter = 0
+
     #Train using minimisation function
     results = minimize(ann, 
                        initial_nn_params,
-                       args=(data, nn_arch, reg_param), 
+                       args=(data, model_params), 
                        method = "CG",
                        jac=True,
                        callback=callback,
                        options={'maxiter':400})
 
     #return split results vector
-    return split_synVec(results.x, nn_arch)
+    return (nn_arch, results.x)
 
-def test_model(syn, data, nn_arch):
+def test_model(model, data):
+
+    syn = model[1]
+
+    model_params = {'nn_arch': model[0],
+                    'reg_param' : 0}
+
     #Extract results
     Y = data[1]
 
     #Number of test_model sample points
     m = len(Y)
 
-    #Reg parameter not important
-    reg_param = None
-
     #Calculate hypothesis
-    h = ann(collapse_syn(syn), data, nn_arch, reg_param, 'predict')
+    h = ann(syn, data, model_params, 'predict')
 
     #Extract highest predication as value
     p = np.argmax(h,axis=1)
@@ -45,10 +53,11 @@ def test_model(syn, data, nn_arch):
 
     print('Model Error:',  error * 100, "%")
     print('Digits wrong: ', int(error * m), "/", m)
+
+    return error
     
 
 # Display current progress
-minimise_iter = 0;
 def callback(synVec):
     global minimise_iter
     minimise_iter += 1
@@ -57,7 +66,17 @@ def callback(synVec):
 
 #Cost function
 #Feed forward network to find cost
-def ann(synVec, data, nn_arch, reg_param=0, mode='minimise'):
+def ann(synVec, data, model_params, mode='minimise'):
+
+    nn_arch = model_params['nn_arch']
+
+    #Check if reguralisation parameter given, otherwise disable
+    if 'reg_param' in model_params:
+        reg_param = model_params['reg_param']
+    else:
+        reg_param = 0
+
+
     #Split data
     X = data[0]
     Y = data[1]
@@ -67,7 +86,7 @@ def ann(synVec, data, nn_arch, reg_param=0, mode='minimise'):
     m = len(Y)
 
     #Number of layers
-    nl = len(nn_arch)
+    nl = nn_arch.size
 
     # Intialise empty lists, sometimes index 0 is unused
     lay = [None]*nl
@@ -127,20 +146,20 @@ def activation_self_deriv(x):
 #Intialises weights of nn
 def intialise_weights(nn_arch):
 
-    epsilon = 0.08
 
     syn = [None]*len(nn_arch) #Intialise to null array
 
     for i in range(1,len(syn)): #skip input layer
         N_in = nn_arch[i-1] + 1
         N_out = nn_arch[i]
+        epsilon = np.sqrt(6/(N_in+N_out))
 
         syn.append( np.random.random((N_out,N_in)) * 2 * epsilon - epsilon )
 
     return syn
 
 def split_synVec(synVec, nn_arch):
-    syn = [None]*len(nn_arch) #Intialise to null array
+    syn = [None]*nn_arch.size #Intialise to null array
 
     split_start = 0
     split_end = 0
